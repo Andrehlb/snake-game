@@ -60,6 +60,17 @@
                 <strong id="status-title">Ready</strong>
                 <span id="status-copy">Press START to play. Eat tech tokens. Avoid the walls.</span>
               </div>
+              <div
+                class="countdown-overlay"
+                id="countdown-overlay"
+                role="status"
+                aria-live="assertive"
+                aria-atomic="true"
+                aria-hidden="true"
+                hidden
+              >
+                <span id="countdown-number"></span>
+              </div>
             </div>
 
             <p class="status-line" id="status-line" role="status" aria-live="polite">
@@ -94,7 +105,7 @@
                   class="d-pad__joystick"
                   id="joystick"
                   type="button"
-                  aria-label="Virtual joystick. Press and drag to change direction."
+                  aria-label="Virtual joystick. Drag to change direction. Double-tap to start or resume."
                 >
                   <span class="d-pad__knob" aria-hidden="true"></span>
                 </button>
@@ -112,7 +123,7 @@
                 >↓</button>
               </div>
 
-              <p class="control-hint">Tap an arrow or drag the center.</p>
+              <p class="control-hint">Tap an arrow or drag. Double-tap the joystick to start or resume.</p>
             </div>
 
             <aside

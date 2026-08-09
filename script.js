@@ -22,6 +22,8 @@ const statusLine = document.querySelector("#status-line");
 const canvasStatus = document.querySelector("#canvas-status");
 const statusTitle = document.querySelector("#status-title");
 const statusCopy = document.querySelector("#status-copy");
+const countdownOverlay = document.querySelector("#countdown-overlay");
+const countdownNumber = document.querySelector("#countdown-number");
 const startButton = document.querySelector("#start-button");
 const pauseButton = document.querySelector("#pause-button");
 const restartButton = document.querySelector("#restart-button");
@@ -31,8 +33,11 @@ const joystick = document.querySelector("#joystick");
 
 const GRID_SIZE = 20;
 const GAME_INTERVAL = 195;
-const START_GRACE_PERIOD = 250;
+const COUNTDOWN_STEP_MS = 760;
 const JOYSTICK_THRESHOLD = 8;
+const JOYSTICK_TAP_TOLERANCE = 7;
+const JOYSTICK_TAP_MAX_DURATION = 350;
+const JOYSTICK_DOUBLE_TAP_WINDOW = 320;
 const FALLBACK_RETURN_URL = "https://github.com/Andrehlb#easter-egg";
 
 const TECH_TOKENS = [
@@ -162,16 +167,108 @@ let lastStepTime = 0;
 let animationFrame = 0;
 let effectsAnimationFrame = 0;
 let resizeFrame = 0;
+let countdownTimer = 0;
+let countdownFocusTarget = null;
 let renderSize = 480;
 let currentBoardSize = 0;
 let joystickPointerId = null;
 let joystickOrigin = { x: 0, y: 0 };
 let lastJoystickDirection = null;
+let joystickPressStartedAt = 0;
+let joystickDragged = false;
+let lastJoystickTapTime = 0;
+
+function hideCountdown() {
+  countdownOverlay.hidden = true;
+  countdownOverlay.setAttribute("aria-hidden", "true");
+  countdownNumber.classList.remove("is-animating");
+  countdownNumber.textContent = "";
+}
+
+function cancelCountdown() {
+  window.clearTimeout(countdownTimer);
+  countdownTimer = 0;
+  countdownFocusTarget = null;
+  hideCountdown();
+}
+
+function showCountdownNumber(value) {
+  countdownNumber.classList.remove("is-animating");
+  countdownNumber.textContent = String(value);
+  void countdownNumber.offsetWidth;
+  countdownNumber.classList.add("is-animating");
+}
+
+function finishCountdown() {
+  if (gameState !== "countdown") {
+    return;
+  }
+
+  const focusTarget = countdownFocusTarget;
+
+  window.clearTimeout(countdownTimer);
+  countdownTimer = 0;
+  countdownFocusTarget = null;
+  hideCountdown();
+
+  if (document.hidden) {
+    gameState = "paused";
+    updateInterface();
+    draw();
+    return;
+  }
+
+  gameState = "running";
+  updateInterface();
+  lastStepTime = performance.now();
+  cancelAnimationFrame(animationFrame);
+  animationFrame = requestAnimationFrame(gameLoop);
+  focusTarget?.focus({ preventScroll: true });
+}
+
+function beginCountdown({ focusTarget = null } = {}) {
+  if (["running", "countdown"].includes(gameState)) {
+    return false;
+  }
+
+  cancelAnimationFrame(animationFrame);
+  animationFrame = 0;
+  cancelCountdown();
+  countdownFocusTarget = focusTarget;
+  gameState = "countdown";
+  updateInterface();
+
+  countdownOverlay.hidden = false;
+  countdownOverlay.setAttribute("aria-hidden", "false");
+
+  let value = 3;
+
+  const advanceCountdown = () => {
+    if (gameState !== "countdown") {
+      return;
+    }
+
+    if (value === 0) {
+      finishCountdown();
+      return;
+    }
+
+    showCountdownNumber(value);
+    value -= 1;
+    countdownTimer = window.setTimeout(advanceCountdown, COUNTDOWN_STEP_MS);
+  };
+
+  advanceCountdown();
+  return true;
+}
 
 function resetGame(nextState = "ready", startingDirectionName = "right") {
   const startingDirection = DIRECTIONS[startingDirectionName] ?? DIRECTIONS.right;
   const startingHead = { x: 10, y: 10 };
 
+  cancelAnimationFrame(animationFrame);
+  animationFrame = 0;
+  cancelCountdown();
   closeProjectPanel();
   cancelAnimationFrame(effectsAnimationFrame);
   sparks = [];
@@ -190,7 +287,7 @@ function resetGame(nextState = "ready", startingDirectionName = "right") {
 }
 
 function startGame() {
-  if (gameState === "running" || gameState === "token-paused") {
+  if (["running", "countdown", "token-paused"].includes(gameState)) {
     return;
   }
 
@@ -198,11 +295,7 @@ function startGame() {
     resetGame("ready");
   }
 
-  gameState = "running";
-  updateInterface();
-  lastStepTime = performance.now() + START_GRACE_PERIOD;
-  cancelAnimationFrame(animationFrame);
-  animationFrame = requestAnimationFrame(gameLoop);
+  beginCountdown();
 }
 
 function togglePause() {
@@ -220,11 +313,12 @@ function togglePause() {
 }
 
 function restartGame() {
-  cancelAnimationFrame(animationFrame);
-  closeProjectPanel();
-  resetGame("running");
-  lastStepTime = performance.now() + START_GRACE_PERIOD;
-  animationFrame = requestAnimationFrame(gameLoop);
+  if (gameState === "countdown") {
+    return;
+  }
+
+  resetGame("ready");
+  beginCountdown();
 }
 
 function gameLoop(timestamp) {
@@ -337,7 +431,7 @@ function requestDirection(name) {
     return;
   }
 
-  if (["token-paused", "game-over", "won"].includes(gameState)) {
+  if (["countdown", "token-paused", "game-over", "won"].includes(gameState)) {
     return;
   }
 
@@ -377,6 +471,10 @@ function updateJoystick(event) {
   const visualY = deltaY * scale;
   const nextDirection = getJoystickDirection(deltaX, deltaY);
 
+  if (distance > JOYSTICK_TAP_TOLERANCE) {
+    joystickDragged = true;
+  }
+
   joystick.style.setProperty("--joystick-x", `${visualX}px`);
   joystick.style.setProperty("--joystick-y", `${visualY}px`);
 
@@ -394,25 +492,65 @@ function beginJoystick(event) {
   event.preventDefault();
   joystickPointerId = event.pointerId;
   joystickOrigin = { x: event.clientX, y: event.clientY };
+  joystickPressStartedAt = event.timeStamp;
+  joystickDragged = false;
   lastJoystickDirection = null;
   joystick.classList.add("is-active");
   joystick.setPointerCapture?.(event.pointerId);
 }
 
-function releaseJoystick(event) {
+function releaseJoystick(event, { allowTap = true } = {}) {
   if (event.pointerId !== joystickPointerId) {
     return;
   }
+
+  const releaseDistance = Math.hypot(
+    event.clientX - joystickOrigin.x,
+    event.clientY - joystickOrigin.y,
+  );
+  const pressDuration = event.timeStamp - joystickPressStartedAt;
+  const isTap =
+    allowTap &&
+    !joystickDragged &&
+    releaseDistance <= JOYSTICK_TAP_TOLERANCE &&
+    pressDuration <= JOYSTICK_TAP_MAX_DURATION;
 
   if (joystick.hasPointerCapture?.(event.pointerId)) {
     joystick.releasePointerCapture(event.pointerId);
   }
 
   joystickPointerId = null;
+  joystickPressStartedAt = 0;
+  joystickDragged = false;
   lastJoystickDirection = null;
   joystick.classList.remove("is-active");
   joystick.style.setProperty("--joystick-x", "0px");
   joystick.style.setProperty("--joystick-y", "0px");
+
+  if (isTap) {
+    registerJoystickTap(event.timeStamp);
+  } else {
+    lastJoystickTapTime = 0;
+  }
+}
+
+function registerJoystickTap(timestamp) {
+  const actionableStates = ["ready", "paused", "game-over", "won"];
+
+  if (!actionableStates.includes(gameState)) {
+    lastJoystickTapTime = 0;
+    return;
+  }
+
+  const elapsed = timestamp - lastJoystickTapTime;
+
+  if (lastJoystickTapTime > 0 && elapsed <= JOYSTICK_DOUBLE_TAP_WINDOW) {
+    lastJoystickTapTime = 0;
+    startGame();
+    return;
+  }
+
+  lastJoystickTapTime = timestamp;
 }
 
 function renderProjectPanel(token) {
@@ -456,21 +594,20 @@ function continueGame() {
   }
 
   closeProjectPanel();
-  gameState = "running";
-  updateInterface();
-  lastStepTime = performance.now() + START_GRACE_PERIOD;
-  cancelAnimationFrame(animationFrame);
-  animationFrame = requestAnimationFrame(gameLoop);
-  pauseButton.focus({ preventScroll: true });
+  beginCountdown({ focusTarget: pauseButton });
 }
 
 function updateInterface() {
   scoreElement.textContent = String(score);
   pauseButton.disabled = !["running", "paused"].includes(gameState);
   pauseButton.textContent = gameState === "paused" ? "Resume" : "Pause";
-  startButton.disabled = ["running", "paused", "token-paused"].includes(
-    gameState,
-  );
+  startButton.disabled = [
+    "running",
+    "paused",
+    "countdown",
+    "token-paused",
+  ].includes(gameState);
+  restartButton.disabled = gameState === "countdown";
 
   const messages = {
     ready: {
@@ -483,6 +620,12 @@ function updateInterface() {
       title: "",
       copy: "",
       line: "Contribution trail in progress.",
+      overlay: false,
+    },
+    countdown: {
+      title: "",
+      copy: "",
+      line: "Get ready.",
       overlay: false,
     },
     paused: {
@@ -856,7 +999,9 @@ directionButtons.forEach((button) => {
 joystick.addEventListener("pointerdown", beginJoystick);
 joystick.addEventListener("pointermove", updateJoystick);
 joystick.addEventListener("pointerup", releaseJoystick);
-joystick.addEventListener("pointercancel", releaseJoystick);
+joystick.addEventListener("pointercancel", (event) => {
+  releaseJoystick(event, { allowTap: false });
+});
 
 startButton.addEventListener("click", startGame);
 pauseButton.addEventListener("click", togglePause);
@@ -866,6 +1011,11 @@ continueButton.addEventListener("click", continueGame);
 document.addEventListener("visibilitychange", () => {
   if (document.hidden && gameState === "running") {
     togglePause();
+  } else if (document.hidden && gameState === "countdown") {
+    cancelCountdown();
+    gameState = "paused";
+    updateInterface();
+    draw();
   }
 });
 

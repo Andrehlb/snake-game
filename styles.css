@@ -232,6 +232,64 @@ canvas {
   font-size: clamp(0.78rem, 2vw, 0.9rem);
 }
 
+.countdown-overlay {
+  position: absolute;
+  z-index: 4;
+  inset: 0;
+  display: grid;
+  overflow: hidden;
+  place-items: center;
+  background: radial-gradient(
+    circle,
+    rgba(216, 149, 85, 0.12),
+    transparent 58%
+  );
+  pointer-events: none;
+}
+
+.countdown-overlay[hidden] {
+  display: none;
+}
+
+.countdown-overlay span {
+  color: var(--gold);
+  font-family: Georgia, "Times New Roman", serif;
+  font-size: clamp(4rem, 22vmin, 9rem);
+  font-variant-numeric: tabular-nums;
+  font-weight: 500;
+  line-height: 1;
+  opacity: 0;
+  text-shadow:
+    0 0 18px rgba(216, 149, 85, 0.5),
+    0 8px 30px rgba(198, 93, 32, 0.34);
+  transform: translateY(0.7rem) scale(0.32);
+  will-change: opacity, transform;
+}
+
+.countdown-overlay span.is-animating {
+  animation: countdown-rise 760ms cubic-bezier(0.2, 0.75, 0.25, 1) both;
+}
+
+@keyframes countdown-rise {
+  0% {
+    opacity: 0;
+    transform: translateY(0.7rem) scale(0.32);
+  }
+
+  18% {
+    opacity: 1;
+  }
+
+  72% {
+    opacity: 0.86;
+  }
+
+  100% {
+    opacity: 0;
+    transform: translateY(-1.15rem) scale(1.72);
+  }
+}
+
 .status-line {
   min-height: 1.5em;
   margin: 0.35rem 0 0;
@@ -887,5 +945,23 @@ kbd {
   *::after {
     scroll-behavior: auto !important;
     transition-duration: 0.01ms !important;
+  }
+
+  .countdown-overlay span.is-animating {
+    animation: countdown-fade 760ms linear both;
+  }
+}
+
+@keyframes countdown-fade {
+  0%,
+  100% {
+    opacity: 0;
+    transform: none;
+  }
+
+  20%,
+  75% {
+    opacity: 1;
+    transform: none;
   }
 }
