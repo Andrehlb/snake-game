@@ -1,0 +1,157 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <meta name="color-scheme" content="dark">
+    <meta
+      name="description"
+      content="A refined Snake game created as an easter egg for André Luiz Barbosa's developer portfolio."
+    >
+    <title>Contribution Snake — Andrehlb</title>
+    <link rel="stylesheet" href="styles.css">
+  </head>
+  <body>
+    <main class="page-shell">
+      <header class="hero">
+        <p class="eyebrow">Andrehlb · Portfolio Easter Egg</p>
+        <h1>Contribution Snake</h1>
+        <p class="intro">Collect tech tokens. Discover the work.</p>
+      </header>
+
+      <section class="game-card" aria-labelledby="game-title">
+        <div class="game-toolbar">
+          <div class="game-card__header">
+            <div>
+              <p class="section-label">Quick play</p>
+              <h2 id="game-title">Build the trail</h2>
+            </div>
+
+            <div class="scoreboard" aria-label="Game score">
+              <span>Score</span>
+              <strong id="score">0</strong>
+            </div>
+          </div>
+
+          <div class="actions" aria-label="Game actions">
+            <button class="button button--primary" id="start-button" type="button">
+              Start
+            </button>
+            <button class="button" id="pause-button" type="button" disabled>
+              Pause
+            </button>
+            <button class="button" id="restart-button" type="button">
+              Restart
+            </button>
+          </div>
+        </div>
+
+        <div class="game-layout">
+          <div class="canvas-column">
+            <div class="canvas-frame">
+              <canvas
+                id="game-canvas"
+                width="480"
+                height="480"
+                aria-label="Snake game board"
+                role="img"
+              ></canvas>
+              <div class="canvas-status" id="canvas-status" aria-hidden="true">
+                <strong id="status-title">Ready</strong>
+                <span id="status-copy">Press START to play. Eat tech tokens. Avoid the walls.</span>
+              </div>
+            </div>
+
+            <p class="status-line" id="status-line" role="status" aria-live="polite">
+              Ready to play.
+            </p>
+          </div>
+
+          <div class="side-column">
+            <div class="controls">
+              <div class="instructions">
+                <p class="section-label">Controls</p>
+                <p>
+                  Use Arrow Keys or WASD.<br>
+                  Or use the control below.
+                </p>
+              </div>
+
+              <div class="d-pad" aria-label="Touch direction controls">
+                <button
+                  class="d-pad__button d-pad__button--up"
+                  type="button"
+                  data-direction="up"
+                  aria-label="Move up"
+                >↑</button>
+                <button
+                  class="d-pad__button d-pad__button--left"
+                  type="button"
+                  data-direction="left"
+                  aria-label="Move left"
+                >←</button>
+                <button
+                  class="d-pad__joystick"
+                  id="joystick"
+                  type="button"
+                  aria-label="Virtual joystick. Press and drag to change direction."
+                >
+                  <span class="d-pad__knob" aria-hidden="true"></span>
+                </button>
+                <button
+                  class="d-pad__button d-pad__button--right"
+                  type="button"
+                  data-direction="right"
+                  aria-label="Move right"
+                >→</button>
+                <button
+                  class="d-pad__button d-pad__button--down"
+                  type="button"
+                  data-direction="down"
+                  aria-label="Move down"
+                >↓</button>
+              </div>
+
+              <p class="control-hint">Tap an arrow or drag the center.</p>
+            </div>
+
+            <aside
+              class="project-panel"
+              id="project-panel"
+              aria-labelledby="project-panel-title"
+              aria-hidden="true"
+              inert
+            >
+              <div class="project-panel__actions">
+                <button class="panel-button panel-button--primary" id="continue-button" type="button">
+                  Continue Game
+                </button>
+                <a
+                  class="panel-button"
+                  id="panel-back-link"
+                  href="https://github.com/Andrehlb#easter-egg"
+                >
+                  Back to GitHub Profile
+                </a>
+              </div>
+
+              <p class="section-label">Token collected</p>
+              <h3 id="project-panel-title"><span id="project-token">JS</span> projects</h3>
+              <ul class="project-list" id="project-list"></ul>
+            </aside>
+          </div>
+        </div>
+      </section>
+
+      <footer class="footer">
+        <a class="back-link" id="back-link" href="https://github.com/Andrehlb#easter-egg">
+          <span aria-hidden="true">←</span>
+          Back to GitHub Profile
+        </a>
+        <p>No tracking, no audio, just one more contribution.</p>
+      </footer>
+    </main>
+
+    <script src="script.js"></script>
+  </body>
+</html>
